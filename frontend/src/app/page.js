@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { fetchBooks } from "../services/api";
 import Link from "next/link"; // Import Next.js Link
 
 export default function Home() {
@@ -8,9 +8,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/books`) // Ensure correct API call
-      .then(response => {
-        setBooks(response.data);
+    fetchBooks()
+      .then(books => {
+        setBooks(books);
         setLoading(false);
       })
       .catch(error => {

@@ -1,0 +1,10 @@
+# Eze Favour | DMI Week 11 Assignment 6
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+evidence/private/

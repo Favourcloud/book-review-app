@@ -4,7 +4,8 @@ const cors = require("cors");
 const initializeDatabase = require("./config/db");
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "16kb" }));
+app.disable("x-powered-by");
 
 // Read allowed origins from environment variables
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : ["http://localhost:3000"];
@@ -22,7 +23,7 @@ app.use(cors({
 
 // Debugging: Log incoming requests
 app.use((req, res, next) => {
-  console.log(`🛠 Incoming request from: ${req.headers.origin}`);
+  res.on("finish", () => console.log(JSON.stringify({event: "request", method: req.method, path: req.path, status: res.statusCode})));
   next();
 });
 
@@ -37,21 +38,11 @@ async function startServer() {
     const Review = require("./models/Review")(sequelize);
 
     // Sync database in the correct order (Users -> Books -> Reviews)
-    await User.sync({ alter: true });
-    await Book.sync({ alter: true });
-    await Review.sync({ alter: true });
+    await User.sync();
+    await Book.sync();
+    await Review.sync();
 
     console.log("✅ Database schema updated successfully!");
-
-    // Insert sample users if table is empty
-    const userCount = await User.count();
-    if (userCount === 0) {
-      await User.bulkCreate([
-        { name: "John Doe", email: "john@example.com", password: "hashedpassword123" },
-        { name: "Alice Smith", email: "alice@example.com", password: "hashedpassword456" }
-      ]);
-      console.log("👤 Sample users added!");
-    }
 
     // Insert sample books if table is empty
     const bookCount = await Book.count();
@@ -64,16 +55,6 @@ async function startServer() {
       console.log("📚 Sample books added!");
     }
 
-    // Insert sample reviews if table is empty
-    const reviewCount = await Review.count();
-    if (reviewCount === 0) {
-      await Review.bulkCreate([
-        { userId: 1, bookId: 1, comment: "Fantastic book!", rating: 5, username: "John Doe" },
-        { userId: 2, bookId: 2, comment: "Very insightful.", rating: 4, username: "Alice Smith" },
-      ]);
-      console.log("✍️ Sample reviews added!");
-    }
-
     // Load routes
     const userRoutes = require("./routes/userRoutes")(sequelize);
     const bookRoutes = require("./routes/bookRoutes")(sequelize);
@@ -84,16 +65,27 @@ async function startServer() {
     app.use("/api/books", bookRoutes);
     app.use("/api/reviews", reviewRoutes);
 
+    app.get("/health", async (_req, res) => {
+      try { await sequelize.authenticate(); res.json({status: "healthy"}); }
+      catch { res.status(503).json({status: "unavailable"}); }
+    });
+
     // Health check route
     app.get("/", (req, res) => {
       res.send("📚 Book Review API is running...");
+    });
+
+    app.use((err, _req, res, _next) => {
+      const corsDenied = err.message === "CORS policy: Not allowed by server";
+      res.status(corsDenied ? 403 : 500).json({message: corsDenied ? "Origin not allowed" : "Server error"});
     });
 
     // Start the server
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   } catch (error) {
-    console.error("❌ Server startup failed:", error);
+    console.error(JSON.stringify({event: "startup_failed", type: error.name}));
+    process.exit(1);
   }
 }
 
