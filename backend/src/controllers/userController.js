@@ -24,7 +24,7 @@ module.exports = (sequelize) => {
 
         res.status(201).json({ message: "User registered successfully" });
       } catch (error) {
-        res.status(500).json({ message: "Server error", error });
+        res.status(500).json({ message: "Server error" });
       }
     },
 
@@ -49,7 +49,7 @@ module.exports = (sequelize) => {
 
         res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
       } catch (error) {
-        res.status(500).json({ message: "Server error", error });
+        res.status(500).json({ message: "Server error" });
       }
     }
   };

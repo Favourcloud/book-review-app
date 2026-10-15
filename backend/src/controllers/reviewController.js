@@ -36,7 +36,7 @@ module.exports = (sequelize) => {
 
         res.status(201).json({ message: "Review added successfully", review: newReview });
       } catch (error) {
-        res.status(500).json({ message: "Server error", error });
+        res.status(500).json({ message: "Server error" });
       }
     },
 
@@ -52,7 +52,7 @@ module.exports = (sequelize) => {
 
         res.json(reviews);
       } catch (error) {
-        res.status(500).json({ message: "Server error", error });
+        res.status(500).json({ message: "Server error" });
       }
     },
   };

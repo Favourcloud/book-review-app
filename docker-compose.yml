@@ -1,54 +1,66 @@
-version: '2.1'
-
+# Eze Favour | DMI Week 11 Assignment 6
+name: week11-book-review
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql_container
-    restart: always
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: book_review_db
+      MYSQL_USER: bookreview
+      MYSQL_PASSWORD: ${DB_PASS:?Set DB_PASS in .env}
+    volumes: [mysql_data:/var/lib/mysql]
+    networks: [database]
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [CMD-SHELL, 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql -h 127.0.0.1 -u bookreview book_review_db -e "SELECT 1" >/dev/null 2>&1']
       interval: 10s
       timeout: 5s
-      retries: 5
-    environment:
-      MYSQL_ROOT_PASSWORD: my-secret-pw
-      MYSQL_DATABASE: book_review_db
-      MYSQL_USER: pravin
-      MYSQL_PASSWORD: Demo12@Test23
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
+      retries: 18
+      start_period: 40s
+    mem_limit: 1g
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
   backend:
     build: ./backend
-    container_name: backend_container
-    restart: always
+    image: week11-book-review-backend:2026-10-15
+    restart: unless-stopped
     depends_on:
-      mysql:
-        condition: service_healthy
+      mysql: {condition: service_healthy}
     environment:
+      NODE_ENV: production
       PORT: 3001
       DB_HOST: mysql
       DB_NAME: book_review_db
-      DB_USER: pravin
-      DB_PASS: Demo12@Test23
-      DB_DIALECT: mysql
-      JWT_SECRET: mysecretkey
-      ALLOWED_ORIGINS: http://<FRONTEND PUBLIC IP>:3000
-    ports:
-      - "3001:3001"
-
+      DB_USER: bookreview
+      DB_PASS: ${DB_PASS:?Set DB_PASS in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      ALLOWED_ORIGINS: ${FRONTEND_ORIGIN:?Set FRONTEND_ORIGIN in .env}
+    ports: ['${BIND_ADDRESS:-0.0.0.0}:${BACKEND_PORT:-3001}:3001']
+    networks: [web, database]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 384m
+    logging: *logging
   frontend:
-    build: ./frontend
-    container_name: frontend_container
-    restart: always
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set browser-facing API URL including /api}
+    image: week11-book-review-frontend:2026-10-15
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend: {condition: service_healthy}
     environment:
-      NEXT_PUBLIC_API_URL: http://<BACKEND PUBLIC IP>:3001
-    ports:
-      - "3000:3000"
-
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set browser-facing API URL including /api}
+    ports: ['${BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-3000}:3000']
+    networks: [web]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 384m
+    logging: *logging
+networks:
+  web: {}
+  database: {internal: true}
 volumes:
-  mysql_data:
+  mysql_data: {}

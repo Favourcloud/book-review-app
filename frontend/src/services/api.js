@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// Ensure API_URL does NOT contain `/api`
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Browser-facing URL must include the backend /api prefix.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 // General function to handle errors
 const handleApiError = (error, defaultMessage) => {
